@@ -513,7 +513,7 @@ object SparkSubmit {
       OptionAssigner(args.principal, YARN, CLIENT, sysProp = "spark.yarn.principal"),
       OptionAssigner(args.keytab, YARN, CLIENT, sysProp = "spark.yarn.keytab"),
 
-      // Yarn cluster only
+      // Yarn cluster only Yarn cluster 模式会设置为命令行参数
       OptionAssigner(args.name, YARN, CLUSTER, clOption = "--name"),
       OptionAssigner(args.driverMemory, YARN, CLUSTER, clOption = "--driver-memory"),
       OptionAssigner(args.driverCores, YARN, CLUSTER, clOption = "--driver-cores"),
@@ -755,7 +755,7 @@ object SparkSubmit {
       }
     Thread.currentThread.setContextClassLoader(loader)
 
-    // 设置classpath
+    // 设置classpath，只有client模式才会有这一项
     for (jar <- childClasspath) {
       addJarToClasspath(jar, loader)
     }
@@ -811,7 +811,7 @@ object SparkSubmit {
         e
     }
 
-    // 执行main方法，并传入参数
+    // 执行main方法，并传入参数，在yarn cluster模式下，会把用户真正的主类和主类上的参数传给main方法
     try {
       mainMethod.invoke(null, childArgs.toArray)
     } catch {
