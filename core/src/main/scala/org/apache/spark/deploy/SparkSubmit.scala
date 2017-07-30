@@ -767,7 +767,9 @@ object SparkSubmit {
 
     var mainClass: Class[_] = null
 
-    // 加载主类
+    // 加载主类，注意不同的模式使用不同的主类 client是直接使用应用的主类
+    // org.apache.spark.deploy.rest.RestSubmissionClient是Mesos Cluster和standalone cluster模式
+    // org.apache.spark.deploy.yarn.Client是yarn-cluster
     try {
       mainClass = Utils.classForName(childMainClass)
     } catch {
