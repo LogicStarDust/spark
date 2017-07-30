@@ -579,6 +579,8 @@ object SparkSubmit {
     // Add the application jar automatically so the user doesn't have to call sc.addJar
     // For YARN cluster mode, the jar is already distributed on each node as "app.jar"
     // For python and R files, the primary resource is already distributed as a regular file
+    // 自动添加应用的jar使我们不必通过sc.addJar
+    // 在YARN集群模式。这个jar已经分配到每个节点作为“app.jar”
     if (!isYarnCluster && !args.isPython && !args.isR) {
       var jars = sysProps.get("spark.jars").map(x => x.split(",").toSeq).getOrElse(Seq.empty)
       if (isUserJar(args.primaryResource)) {
@@ -589,6 +591,7 @@ object SparkSubmit {
 
     // In standalone cluster mode, use the REST client to submit the application (Spark 1.3+).
     // All Spark parameters are expected to be passed to the client through system properties.
+    // 在standalone cluster模式，使用REST Client提交应用，所有的spark参数通过系统属性传给client
     if (args.isStandaloneCluster) {
       if (args.useRest) {
         childMainClass = "org.apache.spark.deploy.rest.RestSubmissionClient"
@@ -610,6 +613,7 @@ object SparkSubmit {
     }
 
     // Let YARN know it's a pyspark app, so it distributes needed libraries.
+    // python部分
     if (clusterManager == YARN) {
       if (args.isPython) {
         sysProps.put("spark.yarn.isPython", "true")
@@ -617,6 +621,7 @@ object SparkSubmit {
     }
 
     // assure a keytab is available from any place in a JVM
+    // 确保在JVM中任何地方都可以使用keytab
     if (clusterManager == YARN || clusterManager == LOCAL) {
       if (args.principal != null) {
         require(args.keytab != null, "Keytab must be specified when principal is specified")
@@ -636,6 +641,8 @@ object SparkSubmit {
     }
 
     // In yarn-cluster mode, use yarn.Client as a wrapper around the user class
+    // 在yarn-cluster模式，使用yarn.client作为一个用户类包装器
+    // 即真正启动的类是yarn.client，把用户要启动的主类放在childArgs的“--jar”中
     if (isYarnCluster) {
       childMainClass = "org.apache.spark.deploy.yarn.Client"
       if (args.isPython) {
@@ -677,16 +684,20 @@ object SparkSubmit {
     }
 
     // Load any properties specified through --conf and the default properties file
+    // 把spark的配置放在系统配置中，虽然spark配置map应该已经放在了args的其他变量中，并且通过本类约566行放进sysProps
+    // 但可能有部分特殊参数仍在sparkProperties中
     for ((k, v) <- args.sparkProperties) {
       sysProps.getOrElseUpdate(k, v)
     }
 
     // Ignore invalid spark.driver.host in cluster modes.
+    // 忽视cluster模式的spark.driver.host
     if (deployMode == CLUSTER) {
       sysProps -= "spark.driver.host"
     }
 
     // Resolve paths in certain spark properties
+    // 在某些spark配置中解析路径，
     val pathConfigs = Seq(
       "spark.jars",
       "spark.files",
