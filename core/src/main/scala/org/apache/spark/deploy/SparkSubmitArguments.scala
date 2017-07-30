@@ -93,6 +93,7 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
   }
 
   // Set parameters from command line arguments
+  // 从用户给予的命令行解析参数 ,注意解析的结果放在从SparkSubmitOptionParser继承来的各个属性之上了
   try {
     parse(args.asJava)
   } catch {
@@ -100,10 +101,13 @@ private[deploy] class SparkSubmitArguments(args: Seq[String], env: Map[String, S
       SparkSubmit.printErrorAndExit(e.getMessage())
   }
   // Populate `sparkProperties` map from properties file
+  // 读取配置项到spark配置map从配置文件中（如果未配置的项目在配置文件中，设置配置文件的参数为当前参数）
   mergeDefaultSparkProperties()
   // Remove keys that don't start with "spark." from `sparkProperties`.
+  // 移除现在配置Map中不是以“saprk.”开头的参数从spark配置map中
   ignoreNonSparkProperties()
   // Use `sparkProperties` map along with env vars to fill in any missing parameters
+  // 使用spark配置map和env vars填充空白配置项
   loadEnvironmentArguments()
 
   validateArguments()

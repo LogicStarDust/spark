@@ -247,7 +247,6 @@ object SparkSubmit {
     * 2.classpath列表
     * 3.system的Map参数表
     * 4.主类
-    *
     * Prepare the environment for submitting an application.
     * This returns a 4-tuple:
     * (1) the arguments for the child process,
@@ -265,6 +264,7 @@ object SparkSubmit {
     var childMainClass = ""
 
     // Set the cluster manager
+    // 设置集群管理器
     val clusterManager: Int = args.master match {
       case m if m.startsWith("yarn") => YARN
       case m if m.startsWith("spark") => STANDALONE
@@ -274,6 +274,7 @@ object SparkSubmit {
     }
 
     // Set the deploy mode; default is client mode
+    // 设置部署模式，默认client
     var deployMode: Int = args.deployMode match {
       case "client" | null => CLIENT
       case "cluster" => CLUSTER
@@ -283,6 +284,7 @@ object SparkSubmit {
     // Because "yarn-cluster" and "yarn-client" encapsulate both the master
     // and deploy mode, we have some logic to infer the master and deploy mode
     // from each other if only one is specified, or exit early if they are at odds.
+    // 如果是“yarn-cluster”和“yarn-client”模式,进行专门的验证
     if (clusterManager == YARN) {
       if (args.master == "yarn-standalone") {
         printWarning("\"yarn-standalone\" is deprecated. Use \"yarn-cluster\" instead.")
@@ -300,6 +302,7 @@ object SparkSubmit {
       }
 
       // Make sure YARN is included in our build if we're trying to use it
+      // 保证Yarn包含在我们的产品中
       if (!Utils.classIsLoadable("org.apache.spark.deploy.yarn.Client") && !Utils.isTesting) {
         printErrorAndExit(
           "Could not load YARN classes. " +
@@ -308,6 +311,7 @@ object SparkSubmit {
     }
 
     // Update args.deployMode if it is null. It will be passed down as a Spark property later.
+    // 更新args的部署模式
     (args.deployMode, deployMode) match {
       case (null, CLIENT) => args.deployMode = "client"
       case (null, CLUSTER) => args.deployMode = "cluster"
@@ -318,6 +322,7 @@ object SparkSubmit {
 
     // Resolve maven dependencies if there are any and add classpath to jars. Add them to py-files
     // too for packages that include Python code
+    // 如果任何添加classpath到jars，解析maven的依赖项。
     val exclusions: Seq[String] =
     if (!StringUtils.isBlank(args.packagesExclusions)) {
       args.packagesExclusions.split(",")
@@ -327,20 +332,27 @@ object SparkSubmit {
     val resolvedMavenCoordinates = SparkSubmitUtils.resolveMavenCoordinates(args.packages,
       Option(args.repositories), Option(args.ivyRepoPath), exclusions = exclusions)
     if (!StringUtils.isBlank(resolvedMavenCoordinates)) {
+      // 把resolvedMavenCoordinates中的每一项合并到args中的jars中
       args.jars = mergeFileLists(args.jars, resolvedMavenCoordinates)
       if (args.isPython) {
         args.pyFiles = mergeFileLists(args.pyFiles, resolvedMavenCoordinates)
       }
     }
 
+    /**
+      * 下面为python和R语言处理代码，如果是java或scala请跳到487行
+      */
+
     // install any R packages that may have been passed through --jars or --packages.
     // Spark Packages may contain R source code inside the jar.
+    // R语言处理
     if (args.isR && !StringUtils.isBlank(args.jars)) {
       RPackageUtils.checkAndBuildRPackage(args.jars, printStream, args.verbose)
     }
 
     // Require all python files to be local, so we can add them to the PYTHONPATH
     // In YARN cluster mode, python files are distributed as regular files, which can be non-local
+    // python处理
     if (args.isPython && !isYarnCluster) {
       if (Utils.nonLocalPaths(args.primaryResource).nonEmpty) {
         printErrorAndExit(s"Only local python files are supported: $args.primaryResource")
@@ -359,6 +371,7 @@ object SparkSubmit {
     }
 
     // The following modes are not supported or applicable
+    // 根据模式确定不支持或者不适用
     (clusterManager, deployMode) match {
       case (MESOS, CLUSTER) if args.isR =>
         printErrorAndExit("Cluster deploy mode is currently not supported for R " +
@@ -381,6 +394,7 @@ object SparkSubmit {
     }
 
     // If we're running a python app, set the main class to our specific python runner
+    // python处理
     if (args.isPython && deployMode == CLIENT) {
       if (args.primaryResource == PYSPARK_SHELL) {
         args.mainClass = "org.apache.spark.api.python.PythonGatewayServer"
@@ -406,6 +420,7 @@ object SparkSubmit {
     // In YARN mode for an R app, add the SparkR package archive and the R package
     // archive containing all of the built R libraries to archives so that they can
     // be distributed with the job
+    // R语言处理
     if (args.isR && clusterManager == YARN) {
       val sparkRPackagePath = RUtils.localSparkRPackagePath
       if (sparkRPackagePath.isEmpty) {
@@ -469,9 +484,11 @@ object SparkSubmit {
 
     // A list of rules to map each argument to system properties or command-line options in
     // each deploy mode; we iterate through these below
+    // 一个规则列表map，每个部署模式中的每个system properties或命令行 options参数;我们在下面迭代
     val options = List[OptionAssigner](
 
       // All cluster managers
+      // OptionAssigner(值，集群管理器，部署模式，命令行项，system properties)
       OptionAssigner(args.master, ALL_CLUSTER_MGRS, ALL_DEPLOY_MODES, sysProp = "spark.master"),
       OptionAssigner(args.deployMode, ALL_CLUSTER_MGRS, ALL_DEPLOY_MODES,
         sysProp = "spark.submit.deployMode"),
@@ -530,6 +547,7 @@ object SparkSubmit {
 
     // In client mode, launch the application main class directly
     // In addition, add the main application jar and any added jars (if any) to the classpath
+    // 在client模式，直接启动应用主类。此外，添加主应用jar和任何jars到classpath
     if (deployMode == CLIENT) {
       childMainClass = args.mainClass
       if (isUserJar(args.primaryResource)) {
@@ -544,6 +562,7 @@ object SparkSubmit {
     }
 
     // Map all arguments to command-line options or system properties for our chosen mode
+    // 映射所有的参数到命令行options或者system properties为我们选择的模式
     for (opt <- options) {
       if (opt.value != null &&
         (deployMode & opt.deployMode) != 0 &&
