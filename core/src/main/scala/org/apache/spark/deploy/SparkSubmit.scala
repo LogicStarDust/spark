@@ -247,6 +247,7 @@ object SparkSubmit {
     * 2.classpath列表
     * 3.system的Map参数表
     * 4.主类
+    *
     * Prepare the environment for submitting an application.
     * This returns a 4-tuple:
     * (1) the arguments for the child process,
