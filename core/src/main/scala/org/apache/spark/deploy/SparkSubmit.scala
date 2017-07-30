@@ -744,7 +744,7 @@ object SparkSubmit {
       printStream.println("\n")
     }
     // scalastyle:on println
-
+    // 建立类加载器，并把当前ContextClassLoader传给其
     val loader =
       if (sysProps.getOrElse("spark.driver.userClassPathFirst", "false").toBoolean) {
         new ChildFirstURLClassLoader(new Array[URL](0),
@@ -755,16 +755,19 @@ object SparkSubmit {
       }
     Thread.currentThread.setContextClassLoader(loader)
 
+    // 设置classpath
     for (jar <- childClasspath) {
       addJarToClasspath(jar, loader)
     }
 
+    // 设置system properties
     for ((key, value) <- sysProps) {
       System.setProperty(key, value)
     }
 
     var mainClass: Class[_] = null
 
+    // 加载主类
     try {
       mainClass = Utils.classForName(childMainClass)
     } catch {
@@ -793,6 +796,7 @@ object SparkSubmit {
       printWarning("Subclasses of scala.App may not work correctly. Use a main() method instead.")
     }
 
+    // 获取main方法
     val mainMethod = mainClass.getMethod("main", new Array[String](0).getClass)
     if (!Modifier.isStatic(mainMethod.getModifiers)) {
       throw new IllegalStateException("The main method in the given main class must be static")
@@ -807,6 +811,7 @@ object SparkSubmit {
         e
     }
 
+    // 执行main方法，并传入参数
     try {
       mainMethod.invoke(null, childArgs.toArray)
     } catch {
