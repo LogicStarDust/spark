@@ -132,7 +132,7 @@ class SparkSubmitOptionParser {
    * Parse a list of spark-submit command line options.
    * <p>
    * See SparkSubmitArguments.scala for a more formal description of available options.
-   *
+   * 解析参数，把参数设置到变量中
    * @throws IllegalArgumentException If an error is found during parsing.
    */
   protected final void parse(List<String> args) {
@@ -160,6 +160,7 @@ class SparkSubmitOptionParser {
           idx++;
           value = args.get(idx);
         }
+        // 设置参数
         if (!handle(name, value)) {
           break;
         }
@@ -174,7 +175,7 @@ class SparkSubmitOptionParser {
         }
         continue;
       }
-
+      //把不是--开头的参数设置成启动类
       if (!handleUnknown(arg)) {
         break;
       }
